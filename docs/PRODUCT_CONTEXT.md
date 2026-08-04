@@ -12,12 +12,12 @@ Um aplicativo pode ter um vídeo gravado e editado por IA, mas ainda precisa de 
 
 ## Estágio atual
 
-O repositório começa com um MVP experimental. A API e o CLI geram quatro trilhas General MIDI (`harmony`, `bass`, `melody`, `drums`) e um manifesto JSON com cues, seções, grade de batidas, versão do algoritmo e parâmetros resolvidos. A biblioteca não gera som e ainda não publica no registro npm.
+O repositório contém um MVP experimental. A API e o CLI geram quatro trilhas General MIDI (`harmony`, `bass`, `melody`, `drums`) e um manifesto JSON com cues, seções, grade de batidas, versão do algoritmo e parâmetros resolvidos. O algoritmo 2 usa frases orientadas pelos acordes, padrões variados, controles de mix e acentos de cue próprios por estilo. A biblioteca publicada não gera som, mas scripts isolados permitem avaliar WAV/MP3 com SoundFont durante o desenvolvimento. O pacote ainda não foi publicado no registro npm.
 
 ## Próximos marcos
 
 1. Permitir leitura e edição de estruturas musicais geradas por outros componentes.
-2. Adicionar renderização opcional para WAV/MP3 por meio de um sintetizador explícito e isolado.
+2. Transformar a renderização de prévia em uma API opcional somente após estabilizar qualidade, licença e tamanho de distribuição.
 3. Integrar importação/exportação de eventos para harnesses de vídeo e automação de volume.
 4. Ampliar estilos, modos e regras de transição sem quebrar o manifesto versionado.
 

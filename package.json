@@ -42,6 +42,9 @@
     "test": "npm run build && node --test \"test/*.test.mjs\"",
     "check": "npm run typecheck && npm run test",
     "demo": "npm run build && node dist/cli.js generate --config examples/app-demo.json --out output/app-demo",
+    "preview:setup": "node scripts/fetch-preview-soundfont.mjs",
+    "preview:demo": "npm run build && npm run preview:setup && node scripts/generate-preview-demo.mjs",
+    "preview:render": "node scripts/render-preview.mjs",
     "pack:check": "npm pack --dry-run",
     "prepare": "npm run build",
     "validate:skills": "node scripts/validate-skills.mjs"
@@ -52,6 +55,7 @@
   },
   "devDependencies": {
     "@types/node": "22.15.21",
+    "spessasynth_core": "4.3.16",
     "tsup": "8.5.1",
     "typescript": "7.0.2"
   },

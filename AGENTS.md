@@ -9,7 +9,8 @@ Auto-MIDI é um pacote TypeScript experimental para gerar música de fundo em MI
 - Mantenha o núcleo sem filesystem e sem credenciais. A escrita de `.mid` e `.json` pertence ao CLI.
 - Use PT-BR UTF-8 em documentação e textos; mantenha identificadores e nomes de campos da API em inglês.
 - Trabalhe, commit e faça push diretamente em `main`; não crie branches sem pedido explícito.
-- Não adicione WAV/MP3, sintetizador ou dependências de rede ao núcleo sem uma decisão de produto documentada.
+- Não adicione WAV/MP3, sintetizador ou dependências de rede ao núcleo. A prévia SoundFont autorizada fica em `scripts/`, usa dependência de desenvolvimento e só acessa a rede por comando explícito.
+- Não versione SoundFonts ou áudio gerado; mantenha-os em `output/` e confira a origem e o SHA-256 em `docs/PREVIEW_RENDERING.md`.
 - Mantenha TypeScript 7 e emita declarações com `tsc`; o gerador de `.d.ts` embutido no tsup não é compatível com esta combinação.
 - Atualize `algorithmVersion` quando uma mudança intencional alterar os bytes gerados para a mesma entrada e seed.
 
@@ -21,6 +22,7 @@ npm run typecheck
 npm run build
 npm test
 npm run demo
+npm run preview:demo
 npm run validate:skills
 npm run pack:check
 ```
@@ -30,6 +32,7 @@ O atalho `auto-midi.cmd` reúne as ações mais frequentes no Windows.
 ## Contexto sob demanda
 
 - [Contexto de produto](docs/PRODUCT_CONTEXT.md)
+- [Renderização de prévias](docs/PREVIEW_RENDERING.md)
 - [Estrutura musical](.agents/skills/design-musical-structure/SKILL.md)
 - [Arranjos MIDI](.agents/skills/generate-midi-arrangements/SKILL.md)
 - [Cues de vídeo](.agents/skills/synchronize-video-cues/SKILL.md)

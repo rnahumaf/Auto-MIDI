@@ -103,6 +103,14 @@ export function chordMidiNotes(
   );
 }
 
+export function chordToneMidiNotes(symbol: string, octave: number): number[] {
+  const chord = Chord.get(symbol);
+  if (chord.empty || chord.notes.length === 0) {
+    throw new Error(`Acorde inválido: ${symbol}.`);
+  }
+  return ascendingMidiNotes(chord.notes, octave);
+}
+
 export function rootMidi(symbol: string, octave: number): number {
   const chord = Chord.get(symbol);
   const root = chord.root || chord.tonic || chord.notes[0];

@@ -18,3 +18,5 @@
 ## Voicing
 
 Use notas do acorde em torno da oitava 4 para harmonia, a fundamental na oitava 2 para baixo e a escala na oitava 4/5 para melodia. Preserve a subida de oitava da escala e escolha inversões pelo menor movimento em relação ao acorde anterior, mantendo a harmonia entre MIDI 48 e 84.
+
+No algoritmo 2, a melodia usa um motivo curto derivado da seed e ancora tempos fortes em notas do acorde vigente. O baixo pode usar fundamental, quinta, oitava e aproximação da próxima fundamental. A resolução final escolhe a tônica mais próxima da região melódica atual para evitar saltos artificiais de oitava.

@@ -54,7 +54,7 @@ export interface GeneratedBeat {
 
 export interface MusicManifest {
   schemaVersion: 1;
-  algorithmVersion: 1;
+  algorithmVersion: 2;
   durationSeconds: number;
   midiDurationSeconds: number;
   style: MusicStyle;

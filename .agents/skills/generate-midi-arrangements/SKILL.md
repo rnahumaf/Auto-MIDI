@@ -14,8 +14,10 @@ Converta a estrutura musical em eventos MIDI curtos, repetíveis e fáceis de in
 3. Gere quatro trilhas nomeadas: `harmony`, `bass`, `melody` e `drums`.
 4. Use a seed para decidir variações melódicas e rítmicas; com a mesma entrada e seed, mantenha os bytes e o manifesto iguais.
 5. Use CC7 para `volume` e preserve velocities para a dinâmica musical, sem introduzir estado global.
-6. Limite cada nota ao tick final da duração e mantenha uma resolução da tônica no final.
-7. Use `midi.toArray()` para retornar `Uint8Array`; deixe `writeFile` exclusivamente no CLI.
+6. Inicialize CC10, CC11, CC91 e CC93 para panorama, expressão, reverb e chorus, mantendo valores adequados ao papel de cada trilha.
+7. Varie comping, baixo, melodia e bateria por seção e posição da frase; toda variação deve consumir apenas a fonte aleatória da seed.
+8. Limite cada nota ao tick final da duração e mantenha uma resolução da tônica no final.
+9. Use `midi.toArray()` para retornar `Uint8Array`; deixe `writeFile` exclusivamente no CLI.
 
 ## Padrões locais
 
@@ -24,7 +26,9 @@ Converta a estrutura musical em eventos MIDI curtos, repetíveis e fáceis de in
 - Use ticks inteiros para ataques e durações. Prefira um tick mínimo a eventos com duração zero.
 - Use CC7 no tick zero de cada trilha para representar volume programático; renderizadores podem escolher como aplicar esse controle.
 - Não permita notas da mesma altura sobrepostas no mesmo canal; mescle ataques simultâneos e encerre a nota anterior antes de um novo ataque.
+- Ao rearticular uma nota sustentada em uma cue, divida-a no tick e preserve o fim original na nova nota.
 - Atualize o manifesto quando alterar quantidade, nomes, canais ou papéis das trilhas.
+- Mantenha renderização SoundFont em `scripts/`; `spessasynth_core` é dependência de desenvolvimento e não entra nos exports do pacote.
 
 ## Gotchas
 
@@ -33,6 +37,7 @@ Converta a estrutura musical em eventos MIDI curtos, repetíveis e fáceis de in
 - O canal 10 é indexado como 9 na biblioteca. Usar 10 cria o canal 11 e remove a bateria do kit General MIDI.
 - O encoder de armadura de clave de `@tonejs/midi@2.0.28` grava um deslocamento inválido; o gerador mantém tônica e modo no manifesto e omite esse meta-evento.
 - O plugin de declarações embutido no `tsup@8.5.1` não funciona com TypeScript 7; mantenha `dts: false` no tsup e gere declarações com `tsc --emitDeclarationOnly`.
+- `audioToWav()` normaliza para 0 dB por padrão; a prévia aplica o próprio ganho e precisa usar `normalizeAudio: false` para manter espaço de volume de música de fundo.
 
 ## Referências
 

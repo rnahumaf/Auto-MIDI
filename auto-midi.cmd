@@ -5,6 +5,7 @@ cd /d "%~dp0"
 if /I "%~1"=="install" goto install
 if /I "%~1"=="check" goto check
 if /I "%~1"=="demo" goto demo
+if /I "%~1"=="preview" goto preview
 if /I "%~1"=="skills" goto skills
 if /I "%~1"=="pack" goto pack
 if not "%~1"=="" goto usage
@@ -17,9 +18,11 @@ echo [2] Typecheck + testes + build
 echo [3] Gerar demonstracao MIDI
 echo [4] Validar skills
 echo [5] Inspecionar pacote npm
+echo [6] Renderizar previas com SoundFont
 echo [0] Sair
-choice /c 123450 /n /m "Escolha: "
-if errorlevel 6 exit /b 0
+choice /c 1234560 /n /m "Escolha: "
+if errorlevel 7 exit /b 0
+if errorlevel 6 goto preview
 if errorlevel 5 goto pack
 if errorlevel 4 goto skills
 if errorlevel 3 goto demo
@@ -38,6 +41,10 @@ goto end
 npm run demo
 goto end
 
+:preview
+npm run preview:demo
+goto end
+
 :skills
 npm run validate:skills
 goto end
@@ -47,7 +54,7 @@ npm run pack:check
 goto end
 
 :usage
-echo Uso: auto-midi.cmd [install^|check^|demo^|skills^|pack]
+echo Uso: auto-midi.cmd [install^|check^|demo^|preview^|skills^|pack]
 exit /b 1
 
 :end

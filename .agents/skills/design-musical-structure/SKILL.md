@@ -15,6 +15,7 @@ Modele a parte teórica da composição antes de escolher ritmos ou codificar ev
 4. Use progressões em graus romanos; preserve a progressão recebida no manifesto e grave os acordes resolvidos separadamente.
 5. Faça cada preset funcionar com uma progressão padrão e com uma progressão válida fornecida pelo usuário.
 6. Mantenha voicings dentro de uma região MIDI confortável e resolva o último compasso na tônica.
+7. Faça tempos métricos fortes da melodia apontarem para notas do acorde; use notas da escala e o motivo determinístico para conectar esses pontos.
 
 ## Regras locais
 
@@ -25,6 +26,7 @@ Modele a parte teórica da composição antes de escolher ritmos ou codificar ev
 - Mantenha a progressão como dado serializável, não como objeto mutável da biblioteca.
 - Converta escalas para MIDI em ordem ascendente, elevando a oitava quando a escala atravessar C.
 - Escolha inversões que minimizem o movimento em relação ao voicing anterior e mantenha a harmonia entre MIDI 48 e 84.
+- Preserve o contorno entre compassos e escolha a oitava da resolução final mais próxima da última nota melódica.
 
 ## Gotchas
 

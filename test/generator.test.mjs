@@ -28,7 +28,7 @@ test("gera quatro trilhas válidas e uma grade de batidas para cada estilo", () 
     const midi = parse(result);
     assert.deepEqual(midi.tracks.map((track) => track.name), ["Harmony", "Bass", "Melody", "Drums"]);
     assert.deepEqual(midi.tracks.map((track) => track.channel), [0, 1, 2, 9]);
-    assert.equal(result.manifest.algorithmVersion, 1);
+    assert.equal(result.manifest.algorithmVersion, 2);
     assert.ok(result.manifest.beats.length > 0);
     assert.equal(result.manifest.beats[0].bar, 1);
     assert.equal(result.manifest.beats[0].beat, 1);
@@ -74,12 +74,106 @@ test("usa ii menor com sétima no preset lofi maior", () => {
 test("diferencia swing lofi e backbeat upbeat", () => {
   const lofi = parse(generateMusic({ durationSeconds: 8, style: "lofi", seed: "lofi-groove" }));
   const lofiDrums = lofi.tracks.find((track) => track.name === "Drums");
-  assert.deepEqual(lofiDrums.notes.filter((note) => note.midi === 38).slice(0, 2).map((note) => note.ticks), [520, 1480]);
+  assert.deepEqual(
+    lofiDrums.notes.filter((note) => note.midi === 42 && note.ticks >= 1920).slice(0, 4).map((note) => note.ticks),
+    [1920, 2240, 2400, 2720],
+  );
+  assert.deepEqual(lofiDrums.notes.filter((note) => note.midi === 38).slice(0, 2).map((note) => note.ticks), [500, 1460]);
 
   const upbeat = parse(generateMusic({ durationSeconds: 6, style: "upbeat", seed: "upbeat-groove" }));
   const upbeatDrums = upbeat.tracks.find((track) => track.name === "Drums");
-  assert.deepEqual(upbeatDrums.notes.filter((note) => note.midi === 36).slice(0, 2).map((note) => note.ticks), [0, 960]);
-  assert.deepEqual(upbeatDrums.notes.filter((note) => note.midi === 38).slice(0, 2).map((note) => note.ticks), [480, 1440]);
+  assert.deepEqual(
+    upbeatDrums.notes.filter((note) => note.midi === 36 && note.ticks >= 1920).slice(0, 2).map((note) => note.ticks),
+    [1920, 2880],
+  );
+  assert.deepEqual(
+    upbeatDrums.notes.filter((note) => note.midi === 38 && note.ticks >= 1920).slice(0, 2).map((note) => note.ticks),
+    [2400, 3360],
+  );
+});
+
+test("varia padrões, enriquece o baixo e escreve controles de mix", () => {
+  const lofi = parse(generateMusic({ durationSeconds: 16, style: "lofi", tonic: "C", seed: "arrangement-v2" }));
+  const bass = lofi.tracks.find((track) => track.name === "Bass");
+  assert.ok(new Set(bass.notes.map((note) => note.midi)).size >= 5);
+
+  const drums = lofi.tracks.find((track) => track.name === "Drums");
+  const secondBarKicks = drums.notes.filter((note) => note.midi === 36 && note.ticks >= 1920 && note.ticks < 3840)
+    .map((note) => note.ticks - 1920);
+  const thirdBarKicks = drums.notes.filter((note) => note.midi === 36 && note.ticks >= 3840 && note.ticks < 5760)
+    .map((note) => note.ticks - 3840);
+  assert.notDeepEqual(secondBarKicks, thirdBarKicks);
+
+  for (const track of lofi.tracks) {
+    for (const controller of [7, 10, 11, 91, 93]) {
+      assert.ok(track.controlChanges[controller]?.length > 0, `${track.name} sem CC${controller}`);
+    }
+  }
+});
+
+test("usa acentos de cue próprios por estilo e respeita intensidade zero", () => {
+  const cueTime = 1.13;
+  const styles = {
+    ambient: { intensity: 1, expectedDrum: undefined },
+    lofi: { intensity: 0.8, expectedDrum: 37 },
+    upbeat: { intensity: 0.8, expectedDrum: 54 },
+  };
+  for (const [style, expectation] of Object.entries(styles)) {
+    const result = generateMusic({
+      durationSeconds: 8,
+      style,
+      seed: `cue-style-${style}`,
+      cues: [{ timeSeconds: cueTime, intensity: expectation.intensity }],
+    });
+    const midi = parse(result);
+    const cueTick = result.manifest.cues[0].tick;
+    const hits = midi.tracks.flatMap((track) => track.notes.filter((note) => note.ticks === cueTick));
+    assert.ok(hits.length > 0);
+    assert.equal(hits.some((note) => note.midi === 49), false);
+    if (expectation.expectedDrum !== undefined) {
+      const drums = midi.tracks.find((track) => track.name === "Drums");
+      assert.ok(drums.notes.some((note) => note.ticks === cueTick && note.midi === expectation.expectedDrum));
+    } else {
+      const drums = midi.tracks.find((track) => track.name === "Drums");
+      assert.equal(drums.notes.some((note) => note.ticks === cueTick), false);
+    }
+  }
+
+  const strongUpbeat = generateMusic({
+    durationSeconds: 8,
+    style: "upbeat",
+    seed: "strong-upbeat-cue",
+    cues: [{ timeSeconds: cueTime, intensity: 1 }],
+  });
+  const strongMidi = parse(strongUpbeat);
+  assert.ok(strongMidi.tracks.find((track) => track.name === "Drums").notes
+    .some((note) => note.ticks === strongUpbeat.manifest.cues[0].tick && note.midi === 49 && note.velocity < 0.65));
+
+  const withoutCue = generateMusic({ durationSeconds: 8, style: "lofi", seed: "silent-cue" });
+  const silentCue = generateMusic({
+    durationSeconds: 8,
+    style: "lofi",
+    seed: "silent-cue",
+    cues: [{ timeSeconds: cueTime, intensity: 0 }],
+  });
+  assert.deepEqual(silentCue.midi, withoutCue.midi);
+});
+
+test("rearticula cue ambient sem cortar a sustentação", () => {
+  const result = generateMusic({
+    durationSeconds: 8,
+    style: "ambient",
+    seed: "ambient-sustain-cue",
+    cues: [{ timeSeconds: 1, intensity: 1 }],
+  });
+  const midi = parse(result);
+  const cueTick = result.manifest.cues[0].tick;
+  const harmony = midi.tracks.find((track) => track.name === "Harmony");
+  const before = harmony.notes.find((note) => note.ticks < cueTick && note.ticks + note.durationTicks === cueTick);
+  assert.ok(before);
+  const resumed = harmony.notes.find((note) => note.midi === before.midi && note.ticks === cueTick);
+  assert.ok(resumed);
+  assert.ok(resumed.ticks + resumed.durationTicks >= 1920);
 });
 
 test("mantém cues e notas dentro do tick final", () => {
@@ -181,7 +275,7 @@ test("mantém smoke checks ESM, CommonJS e CLI", async () => {
     ]);
     assert.match(stdout, /Seed: cli/);
     assert.equal(new Midi(await readFile(`${outputPrefix}.mid`)).tracks.length, 4);
-    assert.equal(JSON.parse(await readFile(`${outputPrefix}.json`, "utf8")).algorithmVersion, 1);
+    assert.equal(JSON.parse(await readFile(`${outputPrefix}.json`, "utf8")).algorithmVersion, 2);
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true });
   }
