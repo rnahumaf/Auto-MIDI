@@ -43,4 +43,3 @@ await rm(temporaryPath, { force: true });
 await writeFile(temporaryPath, bytes);
 await rename(temporaryPath, outputPath);
 console.log(`SoundFont pronto: ${outputPath}`);
-

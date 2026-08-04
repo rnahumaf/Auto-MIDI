@@ -57,4 +57,3 @@ for (const example of examples) {
   console.log(`${example.id}: ${audio.mp3Path ?? audio.wavPath}`);
 }
 await writeFile(resolve(outputDirectory, "index.json"), `${JSON.stringify(index, null, 2)}\n`, "utf8");
-
