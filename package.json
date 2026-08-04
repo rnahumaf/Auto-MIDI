@@ -15,7 +15,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/rnahumaf/Auto-MIDI.git"
+    "url": "git+https://github.com/rnahumaf/Auto-MIDI.git"
   },
   "bugs": {
     "url": "https://github.com/rnahumaf/Auto-MIDI/issues"
@@ -42,7 +42,7 @@
     }
   },
   "bin": {
-    "auto-midi": "./dist/cli.js"
+    "auto-midi": "dist/cli.js"
   },
   "scripts": {
     "build": "tsup && tsc --emitDeclarationOnly",
