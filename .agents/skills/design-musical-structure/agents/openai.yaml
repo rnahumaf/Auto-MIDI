@@ -1,0 +1,4 @@
+interface:
+  display_name: "Estrutura musical programável"
+  short_description: "Modele tonalidades, progressões e voicings"
+  default_prompt: "Use $design-musical-structure para definir a estrutura harmônica desta música."

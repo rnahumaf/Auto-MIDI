@@ -1,0 +1,4 @@
+interface:
+  display_name: "Arranjos MIDI determinísticos"
+  short_description: "Crie trilhas MIDI reproduzíveis por seed"
+  default_prompt: "Use $generate-midi-arrangements para criar as trilhas MIDI desta composição."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sincronização de cues de vídeo"
+  short_description: "Alinhe ataques musicais a tempos do vídeo"
+  default_prompt: "Use $synchronize-video-cues para alinhar as cues desta composição ao vídeo."

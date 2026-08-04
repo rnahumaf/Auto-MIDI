@@ -1,0 +1,14 @@
+{
+  "durationSeconds": 30,
+  "style": "upbeat",
+  "tonic": "D",
+  "mode": "major",
+  "progression": ["I", "V", "vim", "IV"],
+  "bpm": 120,
+  "volume": 0.72,
+  "seed": "app-demo-v1",
+  "cues": [
+    { "id": "feature-1", "timeSeconds": 6.4, "intensity": 0.8 },
+    { "id": "cta", "timeSeconds": 23.75, "intensity": 1 }
+  ]
+}

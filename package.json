@@ -1,0 +1,60 @@
+{
+  "name": "auto-midi",
+  "version": "0.1.0",
+  "description": "Geração programática de trilhas MIDI para vídeos produzidos por IA.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Rodrigo Nahum",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rnahumaf/Auto-MIDI.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rnahumaf/Auto-MIDI/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "auto-midi": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run build",
+    "demo": "npm run build && node dist/cli.js generate --config examples/app-demo.json --out output/app-demo",
+    "pack:check": "npm pack --dry-run",
+    "prepare": "npm run build",
+    "validate:skills": "node scripts/validate-skills.mjs"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28",
+    "tonal": "^6.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "tsup": "^8.5.1",
+    "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
+  }
+}
