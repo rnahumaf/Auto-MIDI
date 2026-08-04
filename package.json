@@ -5,6 +5,14 @@
   "type": "module",
   "license": "MIT",
   "author": "Rodrigo Nahum",
+  "homepage": "https://github.com/rnahumaf/Auto-MIDI#readme",
+  "keywords": [
+    "midi",
+    "generative-music",
+    "music-generation",
+    "video",
+    "typescript"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/rnahumaf/Auto-MIDI.git"

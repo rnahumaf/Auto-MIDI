@@ -12,7 +12,7 @@ Um aplicativo pode ter um vídeo gravado e editado por IA, mas ainda precisa de 
 
 ## Estágio atual
 
-O repositório contém um MVP experimental. A API e o CLI geram quatro trilhas General MIDI (`harmony`, `bass`, `melody`, `drums`) e um manifesto JSON com cues, seções, grade de batidas, versão do algoritmo e parâmetros resolvidos. O algoritmo 2 usa frases orientadas pelos acordes, padrões variados, controles de mix e acentos de cue próprios por estilo. A biblioteca publicada não gera som, mas scripts isolados permitem avaliar WAV/MP3 com SoundFont durante o desenvolvimento. O pacote ainda não foi publicado no registro npm.
+O repositório contém um MVP experimental, publicado inicialmente como `auto-midi@0.1.0`. A API e o CLI geram quatro trilhas General MIDI (`harmony`, `bass`, `melody`, `drums`) e um manifesto JSON com cues, seções, grade de batidas, versão do algoritmo e parâmetros resolvidos. O algoritmo 2 usa frases orientadas pelos acordes, padrões variados, controles de mix e acentos de cue próprios por estilo. A biblioteca publicada não gera som, mas scripts isolados permitem avaliar WAV/MP3 com SoundFont durante o desenvolvimento.
 
 ## Próximos marcos
 

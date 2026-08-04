@@ -2,7 +2,7 @@
 
 Auto-MIDI é um pacote TypeScript experimental para gerar música de fundo programaticamente para vídeos gravados e editados por IA. A primeira saída é MIDI multitrilha, acompanhada por um manifesto JSON que permite ao harness localizar cues, seções e parâmetros musicais.
 
-O projeto está em desenvolvimento e ainda não foi publicado no registro npm. O pacote distribuível continua focado em MIDI; o repositório oferece uma ferramenta opcional de desenvolvimento para renderizar prévias WAV/MP3 com SoundFont.
+O projeto está em desenvolvimento e sua primeira versão pública é `auto-midi@0.1.0`. O pacote distribuível continua focado em MIDI; o repositório oferece uma ferramenta opcional de desenvolvimento para renderizar prévias WAV/MP3 com SoundFont.
 
 ## O que já funciona
 
@@ -20,18 +20,18 @@ O projeto está em desenvolvimento e ainda não foi publicado no registro npm. O
 
 ## Requisitos e instalação
 
-O desenvolvimento usa Node.js 20 ou mais recente.
+Node.js 20 ou mais recente é necessário. Para instalar pelo registro npm:
+
+```powershell
+npm install auto-midi
+```
+
+Para trabalhar diretamente no repositório:
 
 ```powershell
 git clone https://github.com/rnahumaf/Auto-MIDI.git
 cd Auto-MIDI
 npm install
-```
-
-Quando o pacote for publicado, a instalação será:
-
-```powershell
-npm install auto-midi
 ```
 
 Dependências de runtime: [`@tonejs/midi`](https://github.com/Tonejs/Midi) para codificação MIDI e [`tonal`](https://github.com/tonaljs/tonal) para teoria musical.
@@ -115,15 +115,15 @@ WAV é gerado diretamente pelo sintetizador. MP3 requer `ffmpeg` no `PATH`. Cons
 
 Entradas recebidas pelo CLI são validadas em runtime. A duração máxima do MVP é 3.600 segundos, cada composição aceita até 1.000 cues e uma progressão aceita até 64 graus. Durações positivas menores que um tick MIDI são quantizadas para um tick e registradas em `midiDurationSeconds`.
 
-## Publicação futura
+## Releases
 
-Antes de publicar, atualize a versão, rode todos os checks, revise `npm pack --dry-run` e confirme o conteúdo de `dist/`. A publicação planejada será:
+As versões públicas ficam em [npmjs.com/package/auto-midi](https://www.npmjs.com/package/auto-midi). Para preparar uma versão futura, atualize a versão, rode todos os checks, revise `npm pack --dry-run` e confirme o conteúdo de `dist/` antes de executar:
 
 ```powershell
 npm publish --access public
 ```
 
-Este primeiro marco publica somente o repositório público no GitHub. Não são necessárias variáveis de ambiente ou credenciais para gerar MIDI; somente o comando explícito `preview:setup` usa a rede.
+Não são necessárias variáveis de ambiente ou credenciais para gerar MIDI; somente o comando explícito `preview:setup` usa a rede.
 
 ## Documentação do projeto
 
