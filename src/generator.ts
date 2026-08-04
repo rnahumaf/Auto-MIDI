@@ -9,6 +9,7 @@ import {
   scaleMidiNotes,
 } from "./theory.js";
 import type {
+  GeneratedBeat,
   GeneratedSection,
   GeneratedTrack,
   GenerateMusicOptions,
@@ -17,18 +18,43 @@ import type {
   MusicStyle,
   MusicalMode,
   ResolvedCue,
+  SeedInput,
   VideoCue,
 } from "./types.js";
 
 const PPQ = 480;
 const BEATS_PER_BAR = 4;
 const MIN_NOTE_TICKS = 1;
+const MAX_DURATION_SECONDS = 60 * 60;
+const MAX_CUES = 1_000;
+const MAX_PROGRESSION_LENGTH = 64;
 const DRUM_CHANNEL = 9;
 const TRACK_CHANNELS = { harmony: 0, bass: 1, melody: 2, drums: DRUM_CHANNEL } as const;
 const DRUMS = { kick: 36, snare: 38, closedHat: 42, openHat: 46, crash: 49 } as const;
 type MidiFile = import("@tonejs/midi").Midi;
 type MidiTrack = ReturnType<MidiFile["addTrack"]>;
 const Midi = (toneMidi as unknown as { Midi: typeof import("@tonejs/midi").Midi }).Midi;
+
+interface NormalizedOptions {
+  durationSeconds: number;
+  style: MusicStyle;
+  tonic: string;
+  mode: MusicalMode;
+  progression: string[];
+  bpm: number;
+  volume: number;
+  seed: SeedInput | undefined;
+  cues: VideoCue[];
+}
+
+interface MelodyState {
+  index: number;
+  direction: 1 | -1;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 function assertFiniteNumber(name: string, value: unknown): asserts value is number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -46,20 +72,134 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+function validateCues(value: unknown, durationSeconds: number): VideoCue[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) throw new Error("cues precisa ser uma lista.");
+  if (value.length > MAX_CUES) throw new Error(`cues aceita no máximo ${MAX_CUES} itens.`);
+
+  return value
+    .map((candidate, index) => {
+      if (!isRecord(candidate)) throw new Error(`Cue ${index + 1} precisa ser um objeto.`);
+      assertFiniteNumber(`cues[${index}].timeSeconds`, candidate.timeSeconds);
+      if (candidate.timeSeconds < 0 || candidate.timeSeconds >= durationSeconds) {
+        throw new Error(`cues[${index}].timeSeconds precisa estar em [0, duração).`);
+      }
+
+      const intensity = candidate.intensity ?? 1;
+      assertFiniteNumber(`cues[${index}].intensity`, intensity);
+      assertRange(`cues[${index}].intensity`, intensity, 0, 1);
+      if (candidate.id !== undefined && typeof candidate.id !== "string") {
+        throw new Error(`cues[${index}].id precisa ser uma string.`);
+      }
+
+      const cue: VideoCue = { timeSeconds: candidate.timeSeconds, intensity };
+      const id = candidate.id?.trim();
+      if (id) cue.id = id;
+      return cue;
+    })
+    .sort((left, right) => left.timeSeconds - right.timeSeconds);
+}
+
+function normalizeOptions(options: GenerateMusicOptions): NormalizedOptions {
+  if (!isRecord(options)) throw new Error("options precisa ser um objeto.");
+
+  assertFiniteNumber("durationSeconds", options.durationSeconds);
+  if (options.durationSeconds <= 0) throw new Error("durationSeconds precisa ser positivo.");
+  if (options.durationSeconds > MAX_DURATION_SECONDS) {
+    throw new Error(`durationSeconds aceita no máximo ${MAX_DURATION_SECONDS} segundos.`);
+  }
+
+  const styleValue = options.style ?? "ambient";
+  if (typeof styleValue !== "string" || !Object.hasOwn(PRESETS, styleValue)) {
+    throw new Error(`Estilo inválido: ${String(styleValue)}.`);
+  }
+  const style = styleValue as MusicStyle;
+
+  const modeValue = options.mode ?? "major";
+  if (modeValue !== "major" && modeValue !== "minor") {
+    throw new Error(`Modo inválido: ${String(modeValue)}. Use major ou minor.`);
+  }
+  const mode = modeValue;
+
+  const tonicValue = options.tonic ?? "C";
+  if (typeof tonicValue !== "string") throw new Error("tonic precisa ser uma string.");
+  const tonic = normalizeTonic(tonicValue);
+  const preset = presetFor(style);
+
+  const bpm = options.bpm ?? preset.bpm;
+  assertFiniteNumber("bpm", bpm);
+  assertRange("bpm", bpm, 30, 300);
+  const volume = options.volume ?? 0.8;
+  assertFiniteNumber("volume", volume);
+  assertRange("volume", volume, 0, 1);
+
+  const progressionValue = options.progression ?? preset.progression[mode];
+  if (!Array.isArray(progressionValue) || progressionValue.length === 0) {
+    throw new Error("progression precisa ser uma lista não vazia de graus romanos.");
+  }
+  if (progressionValue.length > MAX_PROGRESSION_LENGTH) {
+    throw new Error(`progression aceita no máximo ${MAX_PROGRESSION_LENGTH} graus.`);
+  }
+  const progression = progressionValue.map((degree, index) => {
+    if (typeof degree !== "string" || degree.trim() === "") {
+      throw new Error(`progression[${index}] precisa ser um grau romano não vazio.`);
+    }
+    return degree;
+  });
+
+  const seed = options.seed;
+  if (seed !== undefined && typeof seed !== "string" && typeof seed !== "number") {
+    throw new Error("seed precisa ser uma string ou um número.");
+  }
+  if (typeof seed === "number" && !Number.isFinite(seed)) {
+    throw new Error("seed numérica precisa ser finita.");
+  }
+
+  return {
+    durationSeconds: options.durationSeconds,
+    style,
+    tonic,
+    mode,
+    progression,
+    bpm,
+    volume,
+    seed,
+    cues: validateCues(options.cues, options.durationSeconds),
+  };
+}
+
 function addNote(
   track: MidiTrack,
-  midi: number,
+  midiValue: number,
   startTick: number,
   durationTicks: number,
   velocity: number,
 ): void {
-  if (durationTicks < MIN_NOTE_TICKS || startTick < 0) {
-    return;
+  const midi = clamp(Math.round(midiValue), 0, 127);
+  const start = Math.max(0, Math.round(startTick));
+  let end = start + Math.max(MIN_NOTE_TICKS, Math.round(durationTicks));
+  if (durationTicks < MIN_NOTE_TICKS || startTick < 0) return;
+
+  for (const existing of track.notes) {
+    if (existing.midi !== midi) continue;
+    const existingEnd = existing.ticks + existing.durationTicks;
+    if (existing.ticks === start) {
+      existing.velocity = Math.max(existing.velocity, clamp(velocity, 0.01, 1));
+      existing.durationTicks = Math.max(existing.durationTicks, end - start);
+      return;
+    }
+    if (existing.ticks < start && existingEnd > start) {
+      existing.durationTicks = Math.max(MIN_NOTE_TICKS, start - existing.ticks);
+    } else if (existing.ticks > start && existing.ticks < end) {
+      end = existing.ticks;
+    }
   }
+
+  if (end <= start) return;
   track.addNote({
-    midi: clamp(Math.round(midi), 0, 127),
-    ticks: Math.max(0, Math.round(startTick)),
-    durationTicks: Math.max(MIN_NOTE_TICKS, Math.round(durationTicks)),
+    midi,
+    ticks: start,
+    durationTicks: end - start,
     velocity: clamp(velocity, 0.01, 1),
   });
 }
@@ -69,17 +209,14 @@ function makeSections(durationSeconds: number, barSeconds: number, barCount: num
     return [{ name: "body", startSeconds: 0, endSeconds: durationSeconds, startBar: 0, endBar: barCount }];
   }
 
-  const introBars = 1;
-  const outroBars = 1;
-  const bodyStart = introBars;
-  const bodyEnd = Math.max(bodyStart + 1, barCount - outroBars);
+  const bodyEnd = Math.max(2, barCount - 1);
   return [
-    { name: "intro", startSeconds: 0, endSeconds: Math.min(durationSeconds, barSeconds), startBar: 0, endBar: introBars },
+    { name: "intro", startSeconds: 0, endSeconds: Math.min(durationSeconds, barSeconds), startBar: 0, endBar: 1 },
     {
       name: "body",
-      startSeconds: Math.min(durationSeconds, bodyStart * barSeconds),
+      startSeconds: Math.min(durationSeconds, barSeconds),
       endSeconds: Math.min(durationSeconds, bodyEnd * barSeconds),
-      startBar: bodyStart,
+      startBar: 1,
       endBar: bodyEnd,
     },
     {
@@ -99,23 +236,19 @@ function sectionForBar(bar: number, barCount: number): GeneratedSection["name"] 
   return "body";
 }
 
-function validateCues(cues: readonly VideoCue[] | undefined, durationSeconds: number): VideoCue[] {
-  if (!cues) return [];
-  return cues
-    .map((cue, index) => {
-      if (!cue || typeof cue !== "object") {
-        throw new Error(`Cue ${index + 1} precisa ser um objeto.`);
-      }
-      assertFiniteNumber(`cues[${index}].timeSeconds`, cue.timeSeconds);
-      if (cue.timeSeconds < 0 || cue.timeSeconds >= durationSeconds) {
-        throw new Error(`cues[${index}].timeSeconds precisa estar em [0, duração).`);
-      }
-      const intensity = cue.intensity ?? 1;
-      assertFiniteNumber(`cues[${index}].intensity`, intensity);
-      assertRange(`cues[${index}].intensity`, intensity, 0, 1);
-      return { ...cue, intensity };
-    })
-    .sort((left, right) => left.timeSeconds - right.timeSeconds);
+function makeBeats(header: MidiFile["header"], endTick: number): GeneratedBeat[] {
+  const beats: GeneratedBeat[] = [];
+  for (let tick = 0; tick < endTick; tick += PPQ) {
+    const beatIndex = Math.floor(tick / PPQ) % BEATS_PER_BAR;
+    beats.push({
+      bar: Math.floor(tick / (PPQ * BEATS_PER_BAR)) + 1,
+      beat: beatIndex + 1,
+      tick,
+      timeSeconds: header.ticksToSeconds(tick),
+      strength: beatIndex === 0 ? "strong" : beatIndex === 2 ? "secondary" : "weak",
+    });
+  }
+  return beats;
 }
 
 function addVolume(track: MidiTrack, volume: number): void {
@@ -124,59 +257,81 @@ function addVolume(track: MidiTrack, volume: number): void {
 
 function addHarmony(
   track: MidiTrack,
-  symbol: string,
+  notes: readonly number[],
   startTick: number,
   endTick: number,
   style: MusicStyle,
-  volume: number,
+  dynamics: number,
+  sustainToEnd: boolean,
 ): void {
-  const notes = chordMidiNotes(symbol, 4);
   const duration = endTick - startTick;
-  if (style === "upbeat") {
-    const stab = Math.max(MIN_NOTE_TICKS, Math.min(duration, Math.round(PPQ * 1.5)));
-    addNote(track, notes[0] ?? 60, startTick, stab, volume * 0.65);
-    for (const note of notes.slice(1)) addNote(track, note, startTick, stab, volume * 0.55);
+  if (style === "upbeat" && !sustainToEnd) {
+    const stab = Math.min(duration, Math.round(PPQ * 1.5));
+    notes.forEach((note, index) => addNote(track, note, startTick, stab, dynamics * (index === 0 ? 0.65 : 0.55)));
     return;
   }
-  const velocity = style === "ambient" ? volume * 0.42 : volume * 0.58;
+  const velocity = style === "ambient" ? dynamics * 0.42 : dynamics * 0.58;
   for (const note of notes) addNote(track, note, startTick, duration, velocity);
 }
 
 function addBass(
   track: MidiTrack,
-  symbol: string,
+  root: number,
   startTick: number,
   endTick: number,
   style: MusicStyle,
-  volume: number,
+  dynamics: number,
+  sustainToEnd: boolean,
 ): void {
-  const root = rootMidi(symbol, 2);
+  if (sustainToEnd) {
+    addNote(track, root, startTick, endTick - startTick, dynamics * 0.55);
+    return;
+  }
+
   const step = style === "upbeat" ? PPQ : style === "lofi" ? PPQ * 2 : endTick - startTick;
   for (let tick = startTick; tick < endTick; tick += step) {
-    addNote(track, root, tick, Math.min(step - 20, endTick - tick), volume * (style === "ambient" ? 0.45 : 0.62));
+    const available = endTick - tick;
+    const duration = available <= 20 ? available : Math.min(step - 20, available);
+    addNote(track, root, tick, duration, dynamics * (style === "ambient" ? 0.45 : 0.62));
   }
+}
+
+function advanceMelody(state: MelodyState, scaleLength: number, step: number): void {
+  let next = state.index + step * state.direction;
+  if (next >= scaleLength) {
+    state.direction = -1;
+    next = Math.max(0, scaleLength - 1 - step);
+  } else if (next < 0) {
+    state.direction = 1;
+    next = Math.min(scaleLength - 1, step);
+  }
+  state.index = next;
 }
 
 function addMelody(
   track: MidiTrack,
-  scale: number[],
+  scale: readonly number[],
   startTick: number,
   endTick: number,
   style: MusicStyle,
-  volume: number,
+  dynamics: number,
   random: ReturnType<typeof createRandomSource>["random"],
-  bar: number,
+  state: MelodyState,
 ): void {
-  const step = style === "ambient" ? PPQ * 2 : style === "lofi" ? PPQ : PPQ / 2;
-  let index = (bar * 2) % scale.length;
-  for (let tick = startTick; tick < endTick; tick += step) {
-    const shouldPlay = style === "ambient" ? random.next() > 0.3 : random.next() > 0.12;
-    if (!shouldPlay) continue;
-    const note = (scale[index % scale.length] ?? 60) + (style === "upbeat" ? 12 : 0);
-    const length = Math.max(MIN_NOTE_TICKS, Math.min(Math.round(step * 0.72), endTick - tick));
-    addNote(track, note, tick, length, volume * (style === "ambient" ? 0.38 : 0.48));
-    index += random.next() > 0.68 ? 2 : 1;
+  const stepTicks = style === "ambient" ? PPQ * 2 : style === "lofi" ? PPQ : PPQ / 2;
+  for (let tick = startTick; tick < endTick; tick += stepTicks) {
+    if (random.next() > (style === "ambient" ? 0.3 : 0.12)) {
+      const note = scale[state.index] ?? scale[0] ?? 60;
+      const length = Math.min(Math.round(stepTicks * 0.72), endTick - tick);
+      addNote(track, note, tick, length, dynamics * (style === "ambient" ? 0.38 : 0.48));
+    }
+    advanceMelody(state, scale.length, random.next() > 0.68 ? 2 : 1);
   }
+}
+
+function addDrum(track: MidiTrack, midi: number, tick: number, endTick: number, velocity: number): void {
+  if (tick >= endTick) return;
+  addNote(track, midi, tick, Math.min(Math.round(PPQ / 8), endTick - tick), velocity);
 }
 
 function addDrums(
@@ -184,16 +339,32 @@ function addDrums(
   startTick: number,
   endTick: number,
   style: MusicStyle,
-  volume: number,
+  dynamics: number,
 ): void {
-  const step = style === "ambient" ? PPQ * 2 : PPQ;
-  let beat = 0;
-  for (let tick = startTick; tick < endTick; tick += step) {
-    const length = Math.min(Math.round(PPQ / 8), endTick - tick);
-    if (beat % 4 === 0) addNote(track, DRUMS.kick, tick, length, volume * 0.72);
-    if (style !== "ambient" && beat % 4 === 2) addNote(track, DRUMS.snare, tick, length, volume * 0.58);
-    if (style === "upbeat" || beat % 2 === 0) addNote(track, DRUMS.closedHat, tick, length, volume * 0.38);
-    beat += style === "upbeat" ? 1 : 2;
+  if (style === "ambient") {
+    addDrum(track, DRUMS.kick, startTick, endTick, dynamics * 0.55);
+    addDrum(track, DRUMS.closedHat, startTick, endTick, dynamics * 0.24);
+    addDrum(track, DRUMS.closedHat, startTick + PPQ * 2, endTick, dynamics * 0.2);
+    return;
+  }
+
+  if (style === "lofi") {
+    const swing = Math.round(PPQ / 12);
+    for (let beat = 0; beat < BEATS_PER_BAR; beat += 1) {
+      const straightTick = startTick + beat * PPQ;
+      const swungTick = straightTick + (beat % 2 === 1 ? swing : 0);
+      if (beat === 0 || beat === 2) addDrum(track, DRUMS.kick, straightTick, endTick, dynamics * 0.68);
+      if (beat === 1 || beat === 3) addDrum(track, DRUMS.snare, swungTick, endTick, dynamics * 0.56);
+      addDrum(track, DRUMS.closedHat, swungTick, endTick, dynamics * 0.32);
+    }
+    return;
+  }
+
+  for (let eighth = 0; eighth < BEATS_PER_BAR * 2; eighth += 1) {
+    const tick = startTick + eighth * (PPQ / 2);
+    addDrum(track, eighth === 7 ? DRUMS.openHat : DRUMS.closedHat, tick, endTick, dynamics * 0.36);
+    if (eighth === 0 || eighth === 4) addDrum(track, DRUMS.kick, tick, endTick, dynamics * 0.76);
+    if (eighth === 2 || eighth === 6) addDrum(track, DRUMS.snare, tick, endTick, dynamics * 0.64);
   }
 }
 
@@ -202,16 +373,15 @@ function addCueAccent(
   cueTick: number,
   remainingTicks: number,
   intensity: number,
-  volume: number,
-  tonic: string,
+  chordSymbol: string,
 ): void {
-  const accentDuration = Math.max(MIN_NOTE_TICKS, Math.min(remainingTicks, Math.round(PPQ / 3)));
-  const strength = volume * (0.55 + intensity * 0.45);
-  const root = rootMidi(`${tonic}${""}`, 4);
-  addNote(tracks.drums, DRUMS.crash, cueTick, accentDuration, strength);
-  addNote(tracks.drums, DRUMS.kick, cueTick, accentDuration, strength);
-  addNote(tracks.harmony, root, cueTick, accentDuration, strength * 0.82);
-  addNote(tracks.melody, root + 12, cueTick, accentDuration, strength * 0.78);
+  const duration = Math.min(remainingTicks, Math.round(PPQ / 3));
+  const strength = 0.55 + intensity * 0.4;
+  const root = rootMidi(chordSymbol, 4);
+  addNote(tracks.drums, DRUMS.crash, cueTick, duration, strength);
+  addNote(tracks.drums, DRUMS.kick, cueTick, duration, strength);
+  addNote(tracks.harmony, root, cueTick, duration, strength * 0.82);
+  addNote(tracks.melody, root + 12, cueTick, duration, strength * 0.78);
 }
 
 function trackManifest(name: GeneratedTrack["name"], instrument: number): GeneratedTrack {
@@ -225,28 +395,11 @@ function trackManifest(name: GeneratedTrack["name"], instrument: number): Genera
 }
 
 export function generateMusic(options: GenerateMusicOptions): MusicGenerationResult {
-  assertFiniteNumber("durationSeconds", options.durationSeconds);
-  if (options.durationSeconds <= 0) throw new Error("durationSeconds precisa ser positivo.");
-
-  const style = options.style ?? "ambient";
-  if (!Object.hasOwn(PRESETS, style)) throw new Error(`Estilo inválido: ${style}.`);
-  const mode: MusicalMode = options.mode ?? "major";
-  const tonic = normalizeTonic(options.tonic ?? "C");
-  const preset = presetFor(style, mode);
-  const bpm = options.bpm ?? preset.bpm;
-  assertFiniteNumber("bpm", bpm);
-  assertRange("bpm", bpm, 30, 300);
-  const volume = options.volume ?? 0.8;
-  assertFiniteNumber("volume", volume);
-  assertRange("volume", volume, 0, 1);
-  const progression = options.progression ?? preset.progression[mode];
-  if (!Array.isArray(progression) || progression.length === 0 || progression.some((value) => typeof value !== "string" || value.trim() === "")) {
-    throw new Error("progression precisa ser uma lista não vazia de graus romanos.");
-  }
-
+  const normalized = normalizeOptions(options);
+  const { durationSeconds, style, tonic, mode, progression, bpm, volume, seed: seedInput, cues } = normalized;
+  const preset = presetFor(style);
   const resolvedChords = chordsFromProgression(tonic, progression);
-  const cues = validateCues(options.cues, options.durationSeconds);
-  const { seed, random } = createRandomSource(options.seed);
+  const { seed, random } = createRandomSource(seedInput);
   const midi = new Midi();
   midi.name = `Auto-MIDI ${style} ${tonic} ${mode}`;
   midi.header.setTempo(bpm);
@@ -273,45 +426,54 @@ export function generateMusic(options: GenerateMusicOptions): MusicGenerationRes
   tracks.melody.instrument.number = preset.instruments.melody;
   tracks.drums.name = "Drums";
   tracks.drums.channel = DRUM_CHANNEL;
-  addVolume(tracks.harmony, volume);
-  addVolume(tracks.bass, volume);
-  addVolume(tracks.melody, volume);
-  addVolume(tracks.drums, volume);
+  Object.values(tracks).forEach((track) => addVolume(track, volume));
 
   const barSeconds = (60 / bpm) * BEATS_PER_BAR;
   const barTicks = PPQ * BEATS_PER_BAR;
-  const endTick = midi.header.secondsToTicks(options.durationSeconds);
-  const barCount = Math.max(1, Math.ceil(options.durationSeconds / barSeconds));
-  const scale = scaleMidiNotes(tonic, mode, 4);
+  const endTick = Math.max(MIN_NOTE_TICKS, midi.header.secondsToTicks(durationSeconds));
+  const barCount = Math.max(1, Math.ceil(endTick / barTicks));
+  const scale = scaleMidiNotes(tonic, mode, style === "upbeat" ? 5 : 4);
+  const finalChord = mode === "minor" ? `${tonic}m` : tonic;
+  const barChords: string[] = [];
+  const melodyState: MelodyState = { index: 0, direction: 1 };
+  let previousVoicing: number[] | undefined;
 
   for (let bar = 0; bar < barCount; bar += 1) {
     const startTick = bar * barTicks;
     if (startTick >= endTick) break;
     const barEndTick = Math.min(endTick, startTick + barTicks);
-    const chordIndex = bar % resolvedChords.length;
-    const symbol = bar === barCount - 1 ? (mode === "minor" ? `${tonic}m` : tonic) : resolvedChords[chordIndex] as string;
+    const isLastBar = bar === barCount - 1;
+    const symbol = isLastBar ? finalChord : resolvedChords[bar % resolvedChords.length] as string;
+    barChords.push(symbol);
     const section = sectionForBar(bar, barCount);
-    const sectionFactor = section === "intro" ? 0.82 : section === "outro" ? 0.92 : 1;
-    addHarmony(tracks.harmony, symbol, startTick, barEndTick, style, volume * sectionFactor);
-    addBass(tracks.bass, symbol, startTick, barEndTick, style, volume * sectionFactor);
-    addMelody(tracks.melody, scale, startTick, barEndTick, style, volume * sectionFactor, random, bar);
-    addDrums(tracks.drums, startTick, barEndTick, style, volume * sectionFactor);
-  }
+    const dynamics = section === "intro" ? 0.82 : section === "outro" ? 0.9 : 1;
+    const voicing = chordMidiNotes(symbol, 4, previousVoicing);
+    previousVoicing = voicing;
 
-  // Keep a resolving tonic alive through the exact requested end tick.
-  const finalStartTick = Math.max(0, endTick - PPQ);
-  const finalChord = mode === "minor" ? `${tonic}m` : tonic;
-  for (const note of chordMidiNotes(finalChord, 4)) {
-    addNote(tracks.harmony, note, finalStartTick, endTick - finalStartTick, volume * 0.48);
+    addHarmony(tracks.harmony, voicing, startTick, barEndTick, style, dynamics, isLastBar);
+    addBass(tracks.bass, rootMidi(symbol, 2), startTick, barEndTick, style, dynamics, isLastBar);
+    if (isLastBar) {
+      const resolutionStart = Math.max(startTick, barEndTick - PPQ);
+      addNote(
+        tracks.melody,
+        rootMidi(finalChord, style === "upbeat" ? 5 : 4),
+        resolutionStart,
+        barEndTick - resolutionStart,
+        dynamics * 0.48,
+      );
+    } else {
+      addMelody(tracks.melody, scale, startTick, barEndTick, style, dynamics, random, melodyState);
+    }
+    addDrums(tracks.drums, startTick, barEndTick, style, dynamics);
   }
-  addNote(tracks.bass, rootMidi(finalChord, 2), finalStartTick, endTick - finalStartTick, volume * 0.5);
 
   const resolvedCues: ResolvedCue[] = cues.map((cue, index) => {
-    const tick = midi.header.secondsToTicks(cue.timeSeconds);
+    const tick = clamp(midi.header.secondsToTicks(cue.timeSeconds), 0, endTick - 1);
     const actualTimeSeconds = midi.header.ticksToSeconds(tick);
-    addCueAccent(tracks, tick, Math.max(MIN_NOTE_TICKS, endTick - tick), cue.intensity ?? 1, volume, tonic);
+    const barIndex = Math.min(barChords.length - 1, Math.floor(tick / barTicks));
+    addCueAccent(tracks, tick, endTick - tick, cue.intensity ?? 1, barChords[barIndex] ?? finalChord);
     return {
-      id: cue.id?.trim() || `cue-${index + 1}`,
+      id: cue.id ?? `cue-${index + 1}`,
       requestedTimeSeconds: cue.timeSeconds,
       actualTimeSeconds,
       tick,
@@ -320,10 +482,10 @@ export function generateMusic(options: GenerateMusicOptions): MusicGenerationRes
     };
   });
 
-  const sections = makeSections(options.durationSeconds, barSeconds, barCount);
   const manifest: MusicManifest = {
     schemaVersion: 1,
-    durationSeconds: options.durationSeconds,
+    algorithmVersion: 1,
+    durationSeconds,
     midiDurationSeconds: midi.duration,
     style,
     tonic,
@@ -335,7 +497,8 @@ export function generateMusic(options: GenerateMusicOptions): MusicGenerationRes
     seed,
     timeSignature: [4, 4],
     ppq: midi.header.ppq,
-    sections,
+    sections: makeSections(durationSeconds, barSeconds, barCount),
+    beats: makeBeats(midi.header, endTick),
     tracks: [
       trackManifest("harmony", preset.instruments.harmony),
       trackManifest("bass", preset.instruments.bass),

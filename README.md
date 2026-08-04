@@ -12,6 +12,7 @@ O projeto está em desenvolvimento. Ele ainda não sintetiza som, não produz WA
 - Tonalidade maior/menor, tônica, BPM, volume, seed e progressão em graus romanos.
 - Trilhas separadas de harmonia, baixo, melodia e bateria.
 - Cues com ataque MIDI no tempo solicitado, arredondado ao tick mais próximo.
+- Grade de batidas com compasso, tempo, tick e força para orientar cortes de vídeo.
 - CLI que grava `.mid` e `.json` para inspeção e integração.
 
 ## Requisitos e instalação
@@ -59,6 +60,10 @@ await writeFile("output/video.json", JSON.stringify(result.manifest, null, 2));
 
 Forneça `seed` quando precisar que uma composição volte a ser exatamente igual. Se ela for omitida, uma seed é criada e devolvida no manifesto.
 
+O manifesto inclui `algorithmVersion`, a grade `beats` e as cues resolvidas. Compassos e tempos em `beats` são numerados a partir de 1; `strong`, `secondary` e `weak` indicam a importância métrica. Para reproduzir uma composição após futuras mudanças do gerador, preserve a seed e a versão do algoritmo.
+
+`volume` controla o CC7 das quatro trilhas. As velocities continuam representando a dinâmica do arranjo, evitando aplicar o volume duas vezes em sintetizadores General MIDI.
+
 Graus romanos em minúsculas representam acordes menores quando usados sem sufixo, por exemplo `vi` é normalizado para `vim`. Sufixos como `m7`, `7` e `Maj7` podem ser escritos explicitamente.
 
 ## Uso pelo CLI
@@ -78,12 +83,15 @@ O comando cria `output/app-demo.mid` e `output/app-demo.json`. O diretório `out
 ```powershell
 npm run typecheck       # valida os tipos sem escrever dist
 npm run build           # ESM, CommonJS e declarações
+npm test                # build e suíte automatizada
 npm run demo            # smoke test e exemplo reproduzível
 npm run validate:skills # valida as skills locais
 npm run pack:check      # mostra o conteúdo do pacote sem publicar
 ```
 
-No Windows, `auto-midi.cmd` oferece um menu para essas ações. O fluxo atual usa typecheck, build e smoke checks; não há suíte automatizada de testes neste marco.
+No Windows, `auto-midi.cmd` oferece um menu para essas ações. O fluxo atual usa TypeScript 7, typecheck, build, testes de regressão e smoke checks de API/CLI.
+
+Entradas recebidas pelo CLI são validadas em runtime. A duração máxima do MVP é 3.600 segundos, cada composição aceita até 1.000 cues e uma progressão aceita até 64 graus. Durações positivas menores que um tick MIDI são quantizadas para um tick e registradas em `midiDurationSeconds`.
 
 ## Publicação futura
 

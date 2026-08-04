@@ -1,6 +1,7 @@
 export { generateMusic, PRESETS } from "./generator.js";
 export type {
   GeneratedSection,
+  GeneratedBeat,
   GeneratedTrack,
   GenerateMusicOptions,
   MusicGenerationResult,

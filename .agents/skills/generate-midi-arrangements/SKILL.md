@@ -13,7 +13,7 @@ Converta a estrutura musical em eventos MIDI curtos, repetíveis e fáceis de in
 2. Construa o cabeçalho com BPM, compasso 4/4, armadura de clave e PPQ 480 antes de converter segundos em ticks.
 3. Gere quatro trilhas nomeadas: `harmony`, `bass`, `melody` e `drums`.
 4. Use a seed para decidir variações melódicas e rítmicas; com a mesma entrada e seed, mantenha os bytes e o manifesto iguais.
-5. Escale velocities e CC7 pelo `volume` sem introduzir estado global.
+5. Use CC7 para `volume` e preserve velocities para a dinâmica musical, sem introduzir estado global.
 6. Limite cada nota ao tick final da duração e mantenha uma resolução da tônica no final.
 7. Use `midi.toArray()` para retornar `Uint8Array`; deixe `writeFile` exclusivamente no CLI.
 
@@ -23,6 +23,7 @@ Converta a estrutura musical em eventos MIDI curtos, repetíveis e fáceis de in
 - Use programas General MIDI armazenados em `PRESETS`; bateria não precisa de programa melódico.
 - Use ticks inteiros para ataques e durações. Prefira um tick mínimo a eventos com duração zero.
 - Use CC7 no tick zero de cada trilha para representar volume programático; renderizadores podem escolher como aplicar esse controle.
+- Não permita notas da mesma altura sobrepostas no mesmo canal; mescle ataques simultâneos e encerre a nota anterior antes de um novo ataque.
 - Atualize o manifesto quando alterar quantidade, nomes, canais ou papéis das trilhas.
 
 ## Gotchas
@@ -31,7 +32,7 @@ Converta a estrutura musical em eventos MIDI curtos, repetíveis e fáceis de in
 - `Track.addNote` recebe velocity normalizada entre 0 e 1, enquanto o arquivo MIDI final usa 0 a 127.
 - O canal 10 é indexado como 9 na biblioteca. Usar 10 cria o canal 11 e remove a bateria do kit General MIDI.
 - O encoder de armadura de clave de `@tonejs/midi@2.0.28` grava um deslocamento inválido; o gerador mantém tônica e modo no manifesto e omite esse meta-evento.
-- O plugin de declarações do `tsup@8.5.1` não funciona com TypeScript 7 neste projeto; mantenha TypeScript 5.7.x até a cadeia ser atualizada.
+- O plugin de declarações embutido no `tsup@8.5.1` não funciona com TypeScript 7; mantenha `dts: false` no tsup e gere declarações com `tsc --emitDeclarationOnly`.
 
 ## Referências
 

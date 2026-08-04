@@ -21,4 +21,4 @@ O resultado contém:
 }
 ```
 
-O valor efetivo depende de BPM e PPQ. Para decidir se uma cue está sincronizada, compare `Math.abs(driftSeconds)` com a duração de meio tick, não com zero exato.
+O valor efetivo depende de BPM e PPQ. Para decidir se uma cue está sincronizada, compare `Math.abs(driftSeconds)` com a duração de meio tick, não com zero exato. Na fronteira final, o gerador limita o ataque a `endTick - 1`; nesse caso isolado, aceite desvio de até um tick para manter todas as notas dentro da música.

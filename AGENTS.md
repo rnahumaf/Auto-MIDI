@@ -10,6 +10,8 @@ Auto-MIDI é um pacote TypeScript experimental para gerar música de fundo em MI
 - Use PT-BR UTF-8 em documentação e textos; mantenha identificadores e nomes de campos da API em inglês.
 - Trabalhe, commit e faça push diretamente em `main`; não crie branches sem pedido explícito.
 - Não adicione WAV/MP3, sintetizador ou dependências de rede ao núcleo sem uma decisão de produto documentada.
+- Mantenha TypeScript 7 e emita declarações com `tsc`; o gerador de `.d.ts` embutido no tsup não é compatível com esta combinação.
+- Atualize `algorithmVersion` quando uma mudança intencional alterar os bytes gerados para a mesma entrada e seed.
 
 ## Comandos essenciais
 
@@ -17,6 +19,7 @@ Auto-MIDI é um pacote TypeScript experimental para gerar música de fundo em MI
 npm install
 npm run typecheck
 npm run build
+npm test
 npm run demo
 npm run validate:skills
 npm run pack:check

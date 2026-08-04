@@ -11,7 +11,9 @@ Cada trilha declara no manifesto `name`, `role`, `channel` e `instrument`:
 | `melody` | 2 | Motivo melódico |
 | `drums` | 9 | Kit General MIDI |
 
-O arquivo usa PPQ 480 e compasso `[4, 4]`. O manifesto contém a duração solicitada, a duração efetiva do MIDI, BPM, volume, seed, progressão, seções, trilhas e cues resolvidas.
+O arquivo usa PPQ 480 e compasso `[4, 4]`. O manifesto contém `algorithmVersion`, duração solicitada, duração efetiva do MIDI, BPM, volume, seed, progressão, seções, grade de batidas, trilhas e cues resolvidas. A grade numera compassos e tempos a partir de 1 e classifica a força como `strong`, `secondary` ou `weak`.
+
+`volume` é escrito em CC7 nas quatro trilhas. Velocity representa a dinâmica relativa do arranjo e não deve ser multiplicada novamente pelo volume global.
 
 ## Determinismo
 

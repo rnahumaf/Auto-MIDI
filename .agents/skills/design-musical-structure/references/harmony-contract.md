@@ -17,4 +17,4 @@
 
 ## Voicing
 
-Use notas do acorde em torno da oitava 4 para harmonia, a fundamental na oitava 2 para baixo e a escala na oitava 4/5 para melodia. Transponha somente o necessário para manter as quatro trilhas audíveis e previsíveis.
+Use notas do acorde em torno da oitava 4 para harmonia, a fundamental na oitava 2 para baixo e a escala na oitava 4/5 para melodia. Preserve a subida de oitava da escala e escolha inversões pelo menor movimento em relação ao acorde anterior, mantendo a harmonia entre MIDI 48 e 84.

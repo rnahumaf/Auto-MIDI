@@ -19,7 +19,7 @@ Trate o tempo do vídeo como fonte de verdade para ataques especiais. O MVP mant
 ## Contrato de integração
 
 - Identificadores ausentes recebem `cue-1`, `cue-2` e assim por diante após a ordenação.
-- O desvio esperado é no máximo meio tick, com pequenas diferenças de ponto flutuante.
+- O desvio esperado é no máximo meio tick. Uma cue que arredondaria para o tick final é limitada ao tick anterior e pode desviar até um tick.
 - Não crie mudanças locais de BPM para uma cue. A sincronia exata do MVP significa ataque no tick mais próximo dentro do BPM global.
 - Use o manifesto JSON como ponte para o harness; o MIDI sozinho não carrega a intenção da cue de forma suficiente para uma automação confiável.
 
@@ -27,6 +27,7 @@ Trate o tempo do vídeo como fonte de verdade para ataques especiais. O MVP mant
 
 - Validar `timeSeconds >= durationSeconds` evita acentos que não podem soar dentro do vídeo.
 - `secondsToTicks` arredonda para inteiro; comparar diretamente segundos solicitados e efetivos sem tolerância gera falso erro.
+- Limite o tick resolvido a `endTick - 1`; iniciar uma cue no tick final estende o MIDI além da duração efetiva.
 - Ordenar as cues antes de gerar IDs padrão muda a numeração, portanto IDs fornecidos pelo usuário devem ser preservados.
 - Uma nota longa anterior pode mascarar um ataque de cue em alguns sintetizadores; mantenha o acento em trilhas e velocity próprias.
 

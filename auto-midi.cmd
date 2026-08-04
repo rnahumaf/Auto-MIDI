@@ -13,7 +13,7 @@ if not "%~1"=="" goto usage
 echo.
 echo Auto-MIDI
 echo [1] Instalar dependencias
-echo [2] Typecheck + build
+echo [2] Typecheck + testes + build
 echo [3] Gerar demonstracao MIDI
 echo [4] Validar skills
 echo [5] Inspecionar pacote npm

@@ -44,8 +44,17 @@ export interface GeneratedTrack {
   instrument: number;
 }
 
+export interface GeneratedBeat {
+  bar: number;
+  beat: number;
+  tick: number;
+  timeSeconds: number;
+  strength: "strong" | "secondary" | "weak";
+}
+
 export interface MusicManifest {
   schemaVersion: 1;
+  algorithmVersion: 1;
   durationSeconds: number;
   midiDurationSeconds: number;
   style: MusicStyle;
@@ -59,6 +68,7 @@ export interface MusicManifest {
   timeSignature: [4, 4];
   ppq: number;
   sections: GeneratedSection[];
+  beats: GeneratedBeat[];
   tracks: GeneratedTrack[];
   cues: ResolvedCue[];
 }

@@ -12,7 +12,7 @@ Um aplicativo pode ter um vídeo gravado e editado por IA, mas ainda precisa de 
 
 ## Estágio atual
 
-O repositório começa com um MVP experimental. A API e o CLI geram quatro trilhas General MIDI (`harmony`, `bass`, `melody`, `drums`) e um manifesto JSON com cues, seções e parâmetros resolvidos. A biblioteca não gera som e ainda não publica no registro npm.
+O repositório começa com um MVP experimental. A API e o CLI geram quatro trilhas General MIDI (`harmony`, `bass`, `melody`, `drums`) e um manifesto JSON com cues, seções, grade de batidas, versão do algoritmo e parâmetros resolvidos. A biblioteca não gera som e ainda não publica no registro npm.
 
 ## Próximos marcos
 

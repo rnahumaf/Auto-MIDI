@@ -1,20 +1,28 @@
-import type { MusicStyle, MusicalMode } from "./types.js";
+import type { MusicStyle } from "./types.js";
 
 export interface StylePreset {
-  bpm: number;
-  progression: {
-    major: string[];
-    minor: string[];
+  readonly bpm: number;
+  readonly progression: {
+    readonly major: readonly string[];
+    readonly minor: readonly string[];
   };
-  instruments: {
-    harmony: number;
-    bass: number;
-    melody: number;
+  readonly instruments: {
+    readonly harmony: number;
+    readonly bass: number;
+    readonly melody: number;
   };
-  description: string;
+  readonly description: string;
 }
 
-export const PRESETS: Record<MusicStyle, StylePreset> = {
+function freezePreset(preset: StylePreset): StylePreset {
+  Object.freeze(preset.progression.major);
+  Object.freeze(preset.progression.minor);
+  Object.freeze(preset.progression);
+  Object.freeze(preset.instruments);
+  return Object.freeze(preset);
+}
+
+export const PRESETS: Readonly<Record<MusicStyle, StylePreset>> = Object.freeze({
   ambient: {
     bpm: 72,
     progression: {
@@ -27,7 +35,7 @@ export const PRESETS: Record<MusicStyle, StylePreset> = {
   lofi: {
     bpm: 82,
     progression: {
-      major: ["IIM7", "V7", "IM7", "VIm7"],
+      major: ["IIm7", "V7", "IMaj7", "VIm7"],
       minor: ["im7", "ivm7", "bVII", "bIII"],
     },
     instruments: { harmony: 4, bass: 33, melody: 11 },
@@ -42,9 +50,11 @@ export const PRESETS: Record<MusicStyle, StylePreset> = {
     instruments: { harmony: 81, bass: 38, melody: 80 },
     description: "Ataques curtos, pulso claro e energia de demonstração.",
   },
-};
+} satisfies Record<MusicStyle, StylePreset>);
 
-export function presetFor(style: MusicStyle, mode: MusicalMode): StylePreset {
+for (const preset of Object.values(PRESETS)) freezePreset(preset);
+
+export function presetFor(style: MusicStyle): StylePreset {
   const preset = PRESETS[style];
   if (!preset) {
     throw new Error(`Estilo inválido: ${style}.`);
